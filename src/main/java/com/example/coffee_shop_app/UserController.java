@@ -42,4 +42,10 @@ public class UserController {
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
+    @GetMapping("/qr/{code}")
+    public ResponseEntity<User> getUserByQr(@PathVariable String code) {
+        return userRepository.findByQrCodeNumber(code)
+                .map(user -> ResponseEntity.ok(user))
+                .orElse(ResponseEntity.notFound().build());
+    }
 }

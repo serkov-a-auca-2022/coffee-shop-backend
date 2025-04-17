@@ -6,7 +6,6 @@ import lombok.Setter;
 
 @Getter
 @Setter
-
 @Entity
 @Table(name = "users")
 public class User {
@@ -20,7 +19,11 @@ public class User {
     private String lastName;
     private String phone;
 
+    // Баллы (можем хранить в double, чтобы были дробные значения)
     private double points = 0;
+
+    // Количество бесплатных напитков
+    private int freeDrinks = 0;
 
     @Column(unique = true, nullable = false)
     private String qrCodeNumber; // 6-значное число
@@ -34,12 +37,21 @@ public class User {
         this.phone = phone;
         this.qrCodeNumber = qrCodeNumber;
         this.points = points;
-
+        this.freeDrinks = 0; // по умолчанию 0, но можно задать и другое нач. значение
     }
+
 
     // Геттеры и сеттеры
     public Long getId() {
         return id;
+    }
+
+    public int getFreeDrinks() {
+        return freeDrinks;
+    }
+
+    public void setFreeDrinks(int freeDrinks) {
+        this.freeDrinks = freeDrinks;
     }
 
     public String getEmail() {

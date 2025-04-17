@@ -18,57 +18,84 @@ public class PointsController {
     @Autowired
     private UserRepository userRepository;
 
+    // Репозиторий именно для PointsTransaction
     @Autowired
-    private PointsHistoryRepository pointsHistoryRepository;
+    private PointsTransactionRepository pointsTransactionRepository;
 
-    // ✅ Начисление баллов
+    // ==========================
+    // 1) Начисление баллов
+    // ==========================
     @PostMapping("/add")
-    public ResponseEntity<?> addPoints(@RequestBody PointsTransaction request) {
+    public ResponseEntity<?> addPoints(@RequestBody PointsTransactionRequest request) {
+
+        // Пытаемся найти пользователя
         Optional<User> optionalUser = userRepository.findById(request.getUserId());
-
-        if (optionalUser.isPresent()) {
-            User user = optionalUser.get();
-            user.setPoints(user.getPoints() + request.getAmount());
-            userRepository.save(user);
-
-            // Записываем в историю
-            PointsHistory history = new PointsHistory(user, request.getAmount(), "add", request.getDescription());
-            pointsHistoryRepository.save(history);
-
-            return ResponseEntity.ok("Баллы успешно начислены!");
-        } else {
+        if (optionalUser.isEmpty()) {
             return ResponseEntity.badRequest().body("Пользователь не найден");
         }
+        User user = optionalUser.get();
+
+        // Увеличиваем баланс
+        double newBalance = user.getPoints() + request.getAmount();
+        user.setPoints(newBalance);
+        userRepository.save(user);
+
+        // Создаём запись о транзакции
+        PointsTransaction transaction = new PointsTransaction(
+                user,
+                request.getAmount(),
+                "add",  // Тип операции
+                request.getDescription(),
+                null    // Здесь можно передать Order, если нужно
+        );
+        pointsTransactionRepository.save(transaction);
+
+        return ResponseEntity.ok("Баллы успешно начислены!");
     }
 
-    // ✅ Списание баллов
+    // ==========================
+    // 2) Списание баллов
+    // ==========================
     @PostMapping("/deduct")
-    public ResponseEntity<?> deductPoints(@RequestBody PointsTransaction request) {
+    public ResponseEntity<?> deductPoints(@RequestBody PointsTransactionRequest request) {
+
+        // Находим пользователя
         Optional<User> optionalUser = userRepository.findById(request.getUserId());
-
-        if (optionalUser.isPresent()) {
-            User user = optionalUser.get();
-            if (user.getPoints() < request.getAmount()) {
-                return ResponseEntity.badRequest().body("Недостаточно баллов!");
-            }
-
-            user.setPoints(user.getPoints() - request.getAmount());
-            userRepository.save(user);
-
-            // Записываем в историю
-            PointsHistory history = new PointsHistory(user, -request.getAmount(), "deduct", request.getDescription());
-            pointsHistoryRepository.save(history);
-
-            return ResponseEntity.ok("Баллы успешно списаны!");
-        } else {
+        if (optionalUser.isEmpty()) {
             return ResponseEntity.badRequest().body("Пользователь не найден");
         }
+        User user = optionalUser.get();
+
+        // Проверяем, достаточно ли баллов
+        if (user.getPoints() < request.getAmount()) {
+            return ResponseEntity.badRequest().body("Недостаточно баллов!");
+        }
+
+        // Списываем
+        double newBalance = user.getPoints() - request.getAmount();
+        user.setPoints(newBalance);
+        userRepository.save(user);
+
+        // Пишем транзакцию
+        PointsTransaction transaction = new PointsTransaction(
+                user,
+                -request.getAmount(),  // Сохраняем в БД отрицательное число
+                "deduct",
+                request.getDescription(),
+                null
+        );
+        pointsTransactionRepository.save(transaction);
+
+        return ResponseEntity.ok("Баллы успешно списаны!");
     }
 
-    // ✅ Получение истории баллов
+    // ==========================
+    // 3) Получение истории баллов
+    // ==========================
     @GetMapping("/history/{userId}")
-    public ResponseEntity<List<PointsHistory>> getPointsHistory(@PathVariable Long userId) {
-        List<PointsHistory> history = pointsHistoryRepository.findByUserId(userId);
+    public ResponseEntity<List<PointsTransaction>> getPointsHistory(@PathVariable Long userId) {
+        // Предположим, в репозитории есть метод findByUserId
+        List<PointsTransaction> history = pointsTransactionRepository.findByUserId(userId);
         return ResponseEntity.ok(history);
     }
 }
