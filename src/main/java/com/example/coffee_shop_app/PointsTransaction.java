@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "points_transactions")  // убедитесь, что имя совпадает с реальным именем таблицы
+@Table(name = "points_transactions")
 public class PointsTransaction {
 
     @Id
@@ -14,7 +14,7 @@ public class PointsTransaction {
     // связь с пользователем
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
-    private User user;  // а не userId, чтобы JPA видел связь
+    private User user;
 
     private double amount;
     private String type;        // например "add", "deduct"
