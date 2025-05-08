@@ -1,64 +1,47 @@
 package com.example.coffee_shop_app;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+import java.util.*;
 
+/**
+ * Эндпоинты по продуктам.
+ */
 @RestController
 @RequestMapping("/api/products")
 public class ProductController {
 
-    private final ProductRepository productRepository;
+    private final ProductRepository productRepo;
 
-    @Autowired
-    public ProductController(ProductRepository productRepository) {
-        this.productRepository = productRepository;
+    public ProductController(ProductRepository productRepo) {
+        this.productRepo = productRepo;
     }
 
-    // Получить все продукты
+    /**
+     * Плоский список всех товаров, отсортированных по category/name.
+     */
     @GetMapping
-    public List<Product> getAllProducts() {
-        return productRepository.findAll();
+    public List<Product> listAll() {
+        return productRepo.findAllOrderByCategoryAndName();
     }
 
-    // Создать новый продукт
-    @PostMapping
-    public Product createProduct(@RequestBody Product product) {
-        return productRepository.save(product);
-    }
-
-    // Получить продукт по ID
-    @GetMapping("/{id}")
-    public ResponseEntity<Product> getProductById(@PathVariable Long id) {
-        Product product = productRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + id));
-        return ResponseEntity.ok(product);
-    }
-
-    // Обновить существующий продукт
-    @PutMapping("/{id}")
-    public ResponseEntity<Product> updateProduct(@PathVariable Long id, @RequestBody Product productDetails) {
-        Product product = productRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + id));
-
-        product.setName(productDetails.getName());
-        product.setDescription(productDetails.getDescription());
-        product.setPrice(productDetails.getPrice());
-
-        Product updatedProduct = productRepository.save(product);
-        return ResponseEntity.ok(updatedProduct);
-    }
-
-    // Удалить продукт по ID
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteProduct(@PathVariable Long id) {
-        Product product = productRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + id));
-
-        productRepository.delete(product);
-        return ResponseEntity.noContent().build();
+    /**
+     * Сгруппированный по категории список:
+     * {
+     *   "Кофе":    [ {...}, {...} ],
+     *   "Чай":      [ {...}, {...} ],
+     *   ...
+     * }
+     */
+    @GetMapping("/by-category")
+    public Map<String, List<Product>> listByCategory() {
+        List<Product> all = productRepo.findAllOrderByCategoryAndName();
+        Map<String, List<Product>> grouped = new LinkedHashMap<>();
+        for (Product p : all) {
+            grouped
+                    .computeIfAbsent(p.getCategory(), k -> new ArrayList<>())
+                    .add(p);
+        }
+        return grouped;
     }
 }
