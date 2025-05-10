@@ -13,50 +13,73 @@ public class OrderController {
 
     @Autowired private OrderService orderService;
 
+    /**
+     * Подтвердить (создать или обновить) заказ
+     */
     @PostMapping
     public ResponseEntity<OrderResponse> createOrder(@RequestBody OrderRequest request) {
         Order order = orderService.createOrUpdateOrder(request);
         return ResponseEntity.ok(new OrderResponse(order));
     }
 
+    /**
+     * Список активных заказов
+     */
     @GetMapping("/active")
     public ResponseEntity<List<OrderResponse>> getActiveOrders() {
-        List<Order> orders = orderService.getActiveOrders();
-        return ResponseEntity.ok(orders.stream().map(this::convertToResponse).collect(Collectors.toList()));
+        List<OrderResponse> dtos = orderService.getActiveOrders().stream()
+                .map(OrderResponse::new)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(dtos);
     }
 
-    @GetMapping("/user/{userId}")
-    public ResponseEntity<List<OrderResponse>> getUserOrders(@PathVariable Long userId) {
-        List<Order> orders = orderService.getOrdersByUser(userId);
-        return ResponseEntity.ok(orders.stream().map(this::convertToResponse).collect(Collectors.toList()));
+    /**
+     * История заказов (завершённые и отменённые)
+     */
+    @GetMapping("/history")
+    public ResponseEntity<List<OrderResponse>> getHistoryOrders() {
+        List<OrderResponse> dtos = orderService.getHistoryOrders().stream()
+                .map(OrderResponse::new)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(dtos);
     }
 
+    /**
+     * Детали одного заказа
+     */
     @GetMapping("/{orderId}")
     public ResponseEntity<OrderResponse> getOrder(@PathVariable Long orderId) {
         Order order = orderService.getOrderById(orderId)
                 .orElseThrow(() -> new NotFoundException("Order not found"));
-        return ResponseEntity.ok(convertToResponse(order));
+        return ResponseEntity.ok(new OrderResponse(order));
     }
 
+    /**
+     * Редактировать заказ
+     */
     @PutMapping("/{orderId}")
-    public ResponseEntity<OrderResponse> updateOrder(@PathVariable Long orderId, @RequestBody OrderRequest request) {
+    public ResponseEntity<OrderResponse> updateOrder(
+            @PathVariable Long orderId,
+            @RequestBody OrderRequest request) {
         Order updated = orderService.updateOrder(orderId, request);
-        return ResponseEntity.ok(convertToResponse(updated));
+        return ResponseEntity.ok(new OrderResponse(updated));
     }
 
-    @PostMapping("/{orderId}/cancel")
+    /**
+     * Отменить заказ
+     */
+    @PutMapping("/{orderId}/cancel")
     public ResponseEntity<OrderResponse> cancel(@PathVariable Long orderId) {
         Order cancelled = orderService.cancelOrder(orderId);
-        return ResponseEntity.ok(convertToResponse(cancelled));
+        return ResponseEntity.ok(new OrderResponse(cancelled));
     }
 
-    @PostMapping("/{orderId}/finish")
-    public ResponseEntity<OrderResponse> finish(@PathVariable Long orderId) {
+    /**
+     * Завершить заказ
+     */
+    @PutMapping("/{orderId}/complete")
+    public ResponseEntity<OrderResponse> complete(@PathVariable("orderId") Long orderId) {
         Order finished = orderService.finishOrder(orderId);
-        return ResponseEntity.ok(convertToResponse(finished));
-    }
-
-    private OrderResponse convertToResponse(Order order) {
-        return new OrderResponse(order);
+        return ResponseEntity.ok(new OrderResponse(finished));
     }
 }
