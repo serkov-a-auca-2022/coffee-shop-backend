@@ -7,80 +7,67 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class OrderService {
 
-    @Autowired
-    private OrderRepository orderRepo;
-    @Autowired
-    private UserRepository userRepo;
-    @Autowired
-    private ProductRepository productRepo;
-    @Autowired
-    private PointsTransactionRepository ptsRepo;
-    @Autowired
-    private VisitRepository visitRepo;
-    @Autowired
-    private NotificationRepository notifRepo;
+    @Autowired private OrderRepository orderRepo;
+    @Autowired private UserRepository userRepo;
+    @Autowired private ProductRepository productRepo;
+    @Autowired private PointsTransactionRepository ptsRepo;
+    @Autowired private VisitRepository visitRepo;
+    @Autowired private NotificationRepository notifRepo;
 
     @Transactional
-    public Order createOrder(OrderRequest req) {
-        // 1) Найти пользователя
-        User user = userRepo.findById(req.getUserId())
-                .orElseThrow(() -> new NotFoundException("User not found"));
+    public Order createOrUpdateOrder(OrderRequest req) {
+        User user = null;
+        if (req.getUserId() != null) {
+            user = userRepo.findById(req.getUserId())
+                    .orElseThrow(() -> new NotFoundException("User not found"));
+        } else if (req.getUserQrCode() != null) {
+            user = userRepo.findByQrCodeNumber(req.getUserQrCode())
+                    .orElse(null); // может быть null — пользователь не найден
+        }
 
-        // 2) Собираем позиции заказа
         List<OrderItem> items = new ArrayList<>();
-        double total = 0.0;
-        for (OrderItemDto itemDto : req.getItems()) {
-            Product prod = productRepo.findById(itemDto.getProductId())
+        double total = 0;
+        for (OrderItemDto dto : req.getItems()) {
+            Product product = productRepo.findById(dto.getProductId())
                     .orElseThrow(() -> new NotFoundException("Product not found"));
-            double price = prod.getPrice();
-            total += price * itemDto.getQuantity();
+            double price = product.getPrice();
+            total += price * dto.getQuantity();
 
             OrderItem item = new OrderItem();
-            item.setProduct(prod);
-            item.setQuantity(itemDto.getQuantity());
+            item.setProduct(product);
+            item.setQuantity(dto.getQuantity());
             item.setPrice(price);
             items.add(item);
         }
 
-        // 3) Обработка баллов
-        double pointsToUse = req.getUsePoints();
-        if (pointsToUse > user.getPoints()) {
-            pointsToUse = user.getPoints();
-        }
-        if (pointsToUse > total) {
-            pointsToUse = total;
-        }
+        int pointsToUse = req.getPointsToUse() != null ? req.getPointsToUse() : 0;
+        boolean useFree = req.getUseFreeDrink() != null && req.getUseFreeDrink();
 
-        // 4) Применение бесплатного напитка
+        double discount = 0;
         boolean freeUsed = false;
-        double freeDiscount = 0.0;
-        if (req.isUseFreeDrink() && user.getFreeDrinks() > 0) {
+        if (user != null && useFree && user.getFreeDrinks() > 0) {
+            discount = items.stream().mapToDouble(OrderItem::getPrice).max().orElse(0);
             freeUsed = true;
-            double maxPrice = items.stream()
-                    .mapToDouble(OrderItem::getPrice)
-                    .max()
-                    .orElse(0.0);
-            freeDiscount = maxPrice;
-            if (freeDiscount > total) freeDiscount = total;
             user.setFreeDrinks(user.getFreeDrinks() - 1);
         }
 
-        // 5) Расчет финальной суммы
-        double finalAmount = total - pointsToUse - freeDiscount;
-        if (finalAmount < 0.0) finalAmount = 0.0;
+        if (user != null && pointsToUse > user.getPoints()) {
+            pointsToUse = (int) user.getPoints();
+        }
 
-        // 6) Начисление баллов (например, 5% от finalAmount)
-        int pointsEarned = (int) Math.floor(finalAmount * 0.05);
+        double finalAmount = total - discount - pointsToUse;
+        if (finalAmount < 0) finalAmount = 0;
 
-        // Обновляем баланс баллов пользователя
-        double newPoints = user.getPoints() - pointsToUse + pointsEarned;
-        user.setPoints(newPoints);
+        int pointsEarned = (int) (finalAmount * 0.05);
+        if (user != null) {
+            user.setPoints(user.getPoints() - pointsToUse + pointsEarned);
+        }
 
-        // 7) Создаем объект Order
         Order order = new Order();
         order.setUser(user);
         order.setOrderDate(LocalDateTime.now());
@@ -89,33 +76,82 @@ public class OrderService {
         order.setPointsUsed(pointsToUse);
         order.setPointsEarned(pointsEarned);
         order.setFreeDrinkUsed(freeUsed);
-        for (OrderItem item : items) {
-            item.setOrder(order);
-        }
+        order.setStatus(req.getStatus() != null ? req.getStatus() : OrderStatus.CONFIRMED);
+
+        for (OrderItem item : items) item.setOrder(order);
         order.setItems(items);
+
         orderRepo.save(order);
 
-        // 8) Сохраняем историю баллов
-        if (pointsToUse > 0) {
-            ptsRepo.save(new PointsTransaction(user, -pointsToUse, "REDEEM", order));
-        }
-        if (pointsEarned > 0) {
-            ptsRepo.save(new PointsTransaction(user, pointsEarned, "EARN", order));
+        if (user != null) {
+            if (pointsToUse > 0)
+                ptsRepo.save(new PointsTransaction(user, -pointsToUse, "REDEEM", order));
+            if (pointsEarned > 0)
+                ptsRepo.save(new PointsTransaction(user, pointsEarned, "EARN", order));
+
+            visitRepo.save(new Visit(user.getId()));
+            long visitCount = visitRepo.countByUserId(user.getId());
+            if (visitCount % 7 == 0) {
+                user.setFreeDrinks(user.getFreeDrinks() + 1);
+                notifRepo.save(new Notification(user.getId(), "Поздравляем!", "Вы получили бесплатный напиток!"));
+            }
         }
 
-        // 9) Регистрируем визит. Используем конструктор с userId.
-        visitRepo.save(new Visit(user.getId()));
-        long visitCount = visitRepo.countByUserId(user.getId());
-        if (visitCount % 7 == 0) {
-            user.setFreeDrinks(user.getFreeDrinks() + 1);
-            notifRepo.save(new Notification(user.getId(),
-                    "Поздравляем!",
-                    "Вы получили бесплатный напиток!"));
-        }
         return order;
     }
 
     public List<Order> getOrdersByUser(Long userId) {
-        return orderRepo.findByUserId(userId);
+        return orderRepo.findByUserId(userId).stream()
+                .filter(o -> o.getStatus() == OrderStatus.FINISHED)
+                .toList();
+    }
+
+    public List<Order> getActiveOrders() {
+        return orderRepo.findAll().stream()
+                .filter(o -> o.getStatus() == OrderStatus.CONFIRMED)
+                .toList();
+    }
+
+    public Optional<Order> getOrderById(Long orderId) {
+        return orderRepo.findById(orderId);
+    }
+
+    public Order updateOrder(Long orderId, OrderRequest req) {
+        Order order = orderRepo.findById(orderId).orElseThrow(() -> new NotFoundException("Order not found"));
+
+        List<OrderItem> items = new ArrayList<>();
+        double total = 0;
+        for (OrderItemDto dto : req.getItems()) {
+            Product product = productRepo.findById(dto.getProductId())
+                    .orElseThrow(() -> new NotFoundException("Product not found"));
+            double price = product.getPrice();
+            total += price * dto.getQuantity();
+
+            OrderItem item = new OrderItem();
+            item.setProduct(product);
+            item.setQuantity(dto.getQuantity());
+            item.setPrice(price);
+            item.setOrder(order);
+            items.add(item);
+        }
+
+        order.setItems(items);
+        order.setTotalAmount(total);
+        order.setFinalAmount(total); // обновим без учета баллов/скидок
+        orderRepo.save(order);
+
+        return order;
+    }
+
+    public Order cancelOrder(Long orderId) {
+        Order order = orderRepo.findById(orderId).orElseThrow(() -> new NotFoundException("Order not found"));
+        order.setStatus(OrderStatus.CANCELLED);
+        return orderRepo.save(order);
+    }
+
+    public Order finishOrder(Long orderId) {
+        Order order = orderRepo.findById(orderId).orElseThrow(() -> new NotFoundException("Order not found"));
+        order.setStatus(OrderStatus.FINISHED);
+        return orderRepo.save(order);
     }
 }
