@@ -85,7 +85,7 @@ public class OrderService {
         order.setPointsEarned(pointsEarned);
         order.setFreeDrinkUsed(discount > 0);
         // По умолчанию — ACTIVE (активный)
-        order.setStatus(req.getStatus() != null ? req.getStatus() : OrderStatus.ACTIVE);
+        order.setStatus(req.getStatus() != null ? req.getStatus() : OrderStatus.CONFIRMED);
 
         for (OrderItem item : items) {
             item.setOrder(order);
@@ -123,7 +123,7 @@ public class OrderService {
      */
     public List<Order> getHistoryOrders() {
         return orderRepo.findAll().stream()
-                .filter(o -> o.getStatus() != OrderStatus.ACTIVE)
+                .filter(o -> o.getStatus() != OrderStatus.CONFIRMED)
                 .collect(Collectors.toList());
     }
 
@@ -132,7 +132,7 @@ public class OrderService {
      */
     public List<Order> getActiveOrders() {
         return orderRepo.findAll().stream()
-                .filter(o -> o.getStatus() == OrderStatus.ACTIVE)
+                .filter(o -> o.getStatus() == OrderStatus.CONFIRMED)
                 .collect(Collectors.toList());
     }
 
