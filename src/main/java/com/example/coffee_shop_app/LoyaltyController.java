@@ -24,25 +24,23 @@ public class LoyaltyController {
      *  – totalDrinks     сколько напитков всего куплено,
      *  – drinksToNextFree сколько осталось до след. бесплатного напитка.
      */
+
     @GetMapping("/summary/{userId}")
     public ResponseEntity<?> getSummary(@PathVariable Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found: " + userId));
 
-        long totalDrinks = visitRepository.countByUserId(userId);
         double points     = user.getPoints();
         int    freeDrinks = user.getFreeDrinks();
+        int    cycleCount = user.getLoyaltyCount();      // 0…5 покупок в текущем цикле
+        int    toNextFree = 6 - cycleCount;              // сколько осталось до бесплатного
 
-        long mod = totalDrinks % 6;
-        long drinksToNext = (mod == 0 ? 6 : 6 - mod);
-
-        Map<String, Object> result = Map.of(
+        return ResponseEntity.ok(Map.of(
                 "points",           points,
                 "freeDrinks",       freeDrinks,
-                "totalDrinks",      totalDrinks,
-                "drinksToNextFree", drinksToNext
-        );
-
-        return ResponseEntity.ok(result);
+                "totalDrinks",      cycleCount,
+                "drinksToNextFree", toNextFree
+        ));
     }
+
 }
