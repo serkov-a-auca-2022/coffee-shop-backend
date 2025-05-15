@@ -215,4 +215,15 @@ public class OrderService {
         order.setStatus(OrderStatus.FINISHED);
         return orderRepo.save(order);
     }
+
+    @Transactional
+    public Order assignUserToOrder(Long orderId, Long userId) {
+        Order order = orderRepo.findById(orderId)
+                .orElseThrow(() -> new NotFoundException("Order not found: " + orderId));
+        User user = userRepo.findById(userId)
+                .orElseThrow(() -> new NotFoundException("User not found: " + userId));
+        order.setUser(user);
+        return orderRepo.save(order);
+    }
+
 }

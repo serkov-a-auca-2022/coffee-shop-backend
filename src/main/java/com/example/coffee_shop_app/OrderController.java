@@ -82,4 +82,13 @@ public class OrderController {
         Order finished = orderService.finishOrder(orderId);
         return ResponseEntity.ok(new OrderResponse(finished));
     }
+
+    @PutMapping("/{orderId}/assign/{userId}")
+    public ResponseEntity<OrderResponse> assignUserToOrder(
+            @PathVariable Long orderId,
+            @PathVariable Long userId
+    ) {
+        Order updated = orderService.assignUserToOrder(orderId, userId);
+        return ResponseEntity.ok(new OrderResponse(updated));
+    }
 }
