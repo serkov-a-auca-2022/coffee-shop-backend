@@ -16,6 +16,9 @@ public class OrderResponse {
     private OrderStatus status;
     private List<OrderItemResponseDto> items;
 
+    private UserResponse user;
+
+
     public OrderResponse() {
     }
 
@@ -32,6 +35,9 @@ public class OrderResponse {
         this.items          = order.getItems().stream()
                 .map(OrderItemResponseDto::new)
                 .collect(Collectors.toList());
+        this.user = order.getUser() != null
+                ? new UserResponse(order.getUser())
+                : null;
     }
 
     public Long getOrderId() {
@@ -102,5 +108,12 @@ public class OrderResponse {
     }
     public void setItems(List<OrderItemResponseDto> items) {
         this.items = items;
+    }
+
+    public UserResponse getUser() {
+        return user;
+    }
+    public void setUser(UserResponse user) {
+        this.user = user;
     }
 }
