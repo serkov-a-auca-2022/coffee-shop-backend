@@ -3,80 +3,83 @@ package com.example.coffee_shop_app;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/orders")
 public class OrderController {
 
-    @Autowired
-    private OrderService orderService;
-
-    @Autowired
-    private OrderRepository orderRepository; // если нужен прямой доступ
+    @Autowired private OrderService orderService;
 
     /**
-     * Создать новый заказ
+     * Подтвердить (создать или обновить) заказ
      */
     @PostMapping
-    public ResponseEntity<Order> createOrder(@RequestBody OrderRequest req) {
-        Order o = orderService.createOrUpdateOrder(req);
-        return ResponseEntity.ok(o);
+    public ResponseEntity<OrderResponse> createOrder(@RequestBody OrderRequest request) {
+        Order order = orderService.createOrUpdateOrder(request);
+        return ResponseEntity.ok(new OrderResponse(order));
     }
 
     /**
-     * Обновить (ре-считать позиции) заказ по ID
-     */
-    @PutMapping("/{orderId}")
-    public ResponseEntity<Order> updateOrder(
-            @PathVariable Long orderId,
-            @RequestBody OrderRequest req
-    ) {
-        Order o = orderService.updateOrder(orderId, req);
-        return ResponseEntity.ok(o);
-    }
-
-    /**
-     * Завершить заказ (CONFIRMED → FINISHED)
-     */
-    @PutMapping("/{orderId}/finish")
-    public ResponseEntity<Order> finishOrder(@PathVariable Long orderId) {
-        Order o = orderService.finishOrder(orderId);
-        return ResponseEntity.ok(o);
-    }
-
-    /**
-     * Отменить заказ (CONFIRMED → CANCELLED)
-     */
-    @PutMapping("/{orderId}/cancel")
-    public ResponseEntity<Order> cancelOrder(@PathVariable Long orderId) {
-        Order o = orderService.cancelOrder(orderId);
-        return ResponseEntity.ok(o);
-    }
-
-    /**
-     * Получить все активные (подтверждённые) заказы
+     * Список активных заказов
      */
     @GetMapping("/active")
-    public ResponseEntity<List<Order>> getActive() {
-        return ResponseEntity.ok(orderService.getActiveOrders());
+    public ResponseEntity<List<OrderResponse>> getActiveOrders() {
+        List<OrderResponse> dtos = orderService.getActiveOrders().stream()
+                .map(OrderResponse::new)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(dtos);
     }
 
     /**
-     * Получить всю историю (неактивные) заказы
+     * История заказов (завершённые и отменённые)
      */
     @GetMapping("/history")
-    public ResponseEntity<List<Order>> getHistory() {
-        return ResponseEntity.ok(orderService.getHistoryOrders());
+    public ResponseEntity<List<OrderResponse>> getHistoryOrders() {
+        List<OrderResponse> dtos = orderService.getHistoryOrders().stream()
+                .map(OrderResponse::new)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(dtos);
     }
 
     /**
-     * Получить конкретный заказ по ID
+     * Детали одного заказа
      */
     @GetMapping("/{orderId}")
-    public ResponseEntity<Order> getById(@PathVariable Long orderId) {
-        return orderService.getOrderById(orderId)
-                .map(ResponseEntity::ok)
-                .orElseThrow(() -> new NotFoundException("Order not found: " + orderId));
+    public ResponseEntity<OrderResponse> getOrder(@PathVariable Long orderId) {
+        Order order = orderService.getOrderById(orderId)
+                .orElseThrow(() -> new NotFoundException("Order not found"));
+        return ResponseEntity.ok(new OrderResponse(order));
+    }
+
+    /**
+     * Редактировать заказ
+     */
+    @PutMapping("/{orderId}")
+    public ResponseEntity<OrderResponse> updateOrder(
+            @PathVariable Long orderId,
+            @RequestBody OrderRequest request) {
+        Order updated = orderService.updateOrder(orderId, request);
+        return ResponseEntity.ok(new OrderResponse(updated));
+    }
+
+    /**
+     * Отменить заказ
+     */
+    @PutMapping("/{orderId}/cancel")
+    public ResponseEntity<OrderResponse> cancel(@PathVariable Long orderId) {
+        Order cancelled = orderService.cancelOrder(orderId);
+        return ResponseEntity.ok(new OrderResponse(cancelled));
+    }
+
+    /**
+     * Завершить заказ
+     */
+    @PutMapping("/{orderId}/finish")
+    public ResponseEntity<OrderResponse> complete(@PathVariable("orderId") Long orderId) {
+        Order finished = orderService.finishOrder(orderId);
+        return ResponseEntity.ok(new OrderResponse(finished));
     }
 }
