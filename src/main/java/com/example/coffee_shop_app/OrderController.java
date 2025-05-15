@@ -3,83 +3,80 @@ package com.example.coffee_shop_app;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/orders")
 public class OrderController {
 
-    @Autowired private OrderService orderService;
+    @Autowired
+    private OrderService orderService;
+
+    @Autowired
+    private OrderRepository orderRepository; // если нужен прямой доступ
 
     /**
-     * Подтвердить (создать или обновить) заказ
+     * Создать новый заказ
      */
     @PostMapping
-    public ResponseEntity<OrderResponse> createOrder(@RequestBody OrderRequest request) {
-        Order order = orderService.createOrUpdateOrder(request);
-        return ResponseEntity.ok(new OrderResponse(order));
+    public ResponseEntity<Order> createOrder(@RequestBody OrderRequest req) {
+        Order o = orderService.createOrUpdateOrder(req);
+        return ResponseEntity.ok(o);
     }
 
     /**
-     * Список активных заказов
-     */
-    @GetMapping("/active")
-    public ResponseEntity<List<OrderResponse>> getActiveOrders() {
-        List<OrderResponse> dtos = orderService.getActiveOrders().stream()
-                .map(OrderResponse::new)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(dtos);
-    }
-
-    /**
-     * История заказов (завершённые и отменённые)
-     */
-    @GetMapping("/history")
-    public ResponseEntity<List<OrderResponse>> getHistoryOrders() {
-        List<OrderResponse> dtos = orderService.getHistoryOrders().stream()
-                .map(OrderResponse::new)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(dtos);
-    }
-
-    /**
-     * Детали одного заказа
-     */
-    @GetMapping("/{orderId}")
-    public ResponseEntity<OrderResponse> getOrder(@PathVariable Long orderId) {
-        Order order = orderService.getOrderById(orderId)
-                .orElseThrow(() -> new NotFoundException("Order not found"));
-        return ResponseEntity.ok(new OrderResponse(order));
-    }
-
-    /**
-     * Редактировать заказ
+     * Обновить (ре-считать позиции) заказ по ID
      */
     @PutMapping("/{orderId}")
-    public ResponseEntity<OrderResponse> updateOrder(
+    public ResponseEntity<Order> updateOrder(
             @PathVariable Long orderId,
-            @RequestBody OrderRequest request) {
-        Order updated = orderService.updateOrder(orderId, request);
-        return ResponseEntity.ok(new OrderResponse(updated));
+            @RequestBody OrderRequest req
+    ) {
+        Order o = orderService.updateOrder(orderId, req);
+        return ResponseEntity.ok(o);
     }
 
     /**
-     * Отменить заказ
+     * Завершить заказ (CONFIRMED → FINISHED)
+     */
+    @PutMapping("/{orderId}/finish")
+    public ResponseEntity<Order> finishOrder(@PathVariable Long orderId) {
+        Order o = orderService.finishOrder(orderId);
+        return ResponseEntity.ok(o);
+    }
+
+    /**
+     * Отменить заказ (CONFIRMED → CANCELLED)
      */
     @PutMapping("/{orderId}/cancel")
-    public ResponseEntity<OrderResponse> cancel(@PathVariable Long orderId) {
-        Order cancelled = orderService.cancelOrder(orderId);
-        return ResponseEntity.ok(new OrderResponse(cancelled));
+    public ResponseEntity<Order> cancelOrder(@PathVariable Long orderId) {
+        Order o = orderService.cancelOrder(orderId);
+        return ResponseEntity.ok(o);
     }
 
     /**
-     * Завершить заказ
+     * Получить все активные (подтверждённые) заказы
      */
-    @PutMapping("/{orderId}/complete")
-    public ResponseEntity<OrderResponse> complete(@PathVariable("orderId") Long orderId) {
-        Order finished = orderService.finishOrder(orderId);
-        return ResponseEntity.ok(new OrderResponse(finished));
+    @GetMapping("/active")
+    public ResponseEntity<List<Order>> getActive() {
+        return ResponseEntity.ok(orderService.getActiveOrders());
+    }
+
+    /**
+     * Получить всю историю (неактивные) заказы
+     */
+    @GetMapping("/history")
+    public ResponseEntity<List<Order>> getHistory() {
+        return ResponseEntity.ok(orderService.getHistoryOrders());
+    }
+
+    /**
+     * Получить конкретный заказ по ID
+     */
+    @GetMapping("/{orderId}")
+    public ResponseEntity<Order> getById(@PathVariable Long orderId) {
+        return orderService.getOrderById(orderId)
+                .map(ResponseEntity::ok)
+                .orElseThrow(() -> new NotFoundException("Order not found: " + orderId));
     }
 }
