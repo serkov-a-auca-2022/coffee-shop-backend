@@ -1,15 +1,10 @@
 package com.example.coffee_shop_app;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
 
-@Getter
-@Setter
 @Entity
 @Table(name = "users")
 public class User {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -19,45 +14,47 @@ public class User {
     private String lastName;
     private String phone;
 
-    // Баллы (можем хранить в double, чтобы были дробные значения)
-    private double points = 0;
+    /** Баллы пользователя */
+    private double points = 0.0;
 
-    // Количество бесплатных напитков
+    /** Доступные бесплатные напитки */
     private int freeDrinks = 0;
 
+    /** Уникальный номер QR-кода */
     @Column(unique = true, nullable = false)
-    private String qrCodeNumber; // 6-значное число
+    private String qrCodeNumber;
+
+    /** Счётчик купленных напитков в текущем цикле (до бесплатного) */
+    private int loyaltyCount = 0;
 
     public User() {}
 
-    public User(String email, String firstName, String lastName, String phone, String qrCodeNumber, double points) {
+    public User(String email,
+                String firstName,
+                String lastName,
+                String phone,
+                String qrCodeNumber,
+                double points) {
         this.email = email;
         this.firstName = firstName;
         this.lastName = lastName;
         this.phone = phone;
         this.qrCodeNumber = qrCodeNumber;
         this.points = points;
-        this.freeDrinks = 0; // по умолчанию 0, но можно задать и другое нач. значение
+        this.freeDrinks = 0;
+        this.loyaltyCount = 0;
     }
 
-
-    // Геттеры и сеттеры
     public Long getId() {
         return id;
     }
-
-    public int getFreeDrinks() {
-        return freeDrinks;
-    }
-
-    public void setFreeDrinks(int freeDrinks) {
-        this.freeDrinks = freeDrinks;
+    public void setId(Long id) {
+        this.id = id;
     }
 
     public String getEmail() {
         return email;
     }
-
     public void setEmail(String email) {
         this.email = email;
     }
@@ -65,7 +62,6 @@ public class User {
     public String getFirstName() {
         return firstName;
     }
-
     public void setFirstName(String firstName) {
         this.firstName = firstName;
     }
@@ -73,7 +69,6 @@ public class User {
     public String getLastName() {
         return lastName;
     }
-
     public void setLastName(String lastName) {
         this.lastName = lastName;
     }
@@ -81,7 +76,6 @@ public class User {
     public String getPhone() {
         return phone;
     }
-
     public void setPhone(String phone) {
         this.phone = phone;
     }
@@ -89,16 +83,28 @@ public class User {
     public double getPoints() {
         return points;
     }
-
     public void setPoints(double points) {
         this.points = points;
+    }
+
+    public int getFreeDrinks() {
+        return freeDrinks;
+    }
+    public void setFreeDrinks(int freeDrinks) {
+        this.freeDrinks = freeDrinks;
     }
 
     public String getQrCodeNumber() {
         return qrCodeNumber;
     }
-
     public void setQrCodeNumber(String qrCodeNumber) {
         this.qrCodeNumber = qrCodeNumber;
+    }
+
+    public int getLoyaltyCount() {
+        return loyaltyCount;
+    }
+    public void setLoyaltyCount(int loyaltyCount) {
+        this.loyaltyCount = loyaltyCount;
     }
 }
