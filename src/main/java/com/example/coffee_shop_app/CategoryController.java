@@ -28,4 +28,11 @@ public class CategoryController {
                 .distinct()
                 .collect(Collectors.toList());
     }
+
+    @GetMapping("/category/{cat}")
+    public List<Product> listBySingleCategory(@PathVariable("cat") String cat) {
+        return productRepo.findAll().stream()
+                .filter(p -> cat.equalsIgnoreCase(p.getCategory()))
+                .collect(Collectors.toList());
+    }
 }
