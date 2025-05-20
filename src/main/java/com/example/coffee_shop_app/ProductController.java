@@ -29,7 +29,7 @@ public class ProductController {
      * Сгруппированный по категории список:
      * {
      *   "Кофе":    [ {...}, {...} ],
-     *   "Чай":      [ {...}, {...} ],
+     *   "Чай":     [ {...}, {...} ],
      *   ...
      * }
      */
@@ -43,5 +43,13 @@ public class ProductController {
                     .add(p);
         }
         return grouped;
+    }
+
+    /**
+     * Список продуктов одной категории.
+     */
+    @GetMapping("/category/{cat}")
+    public List<Product> listForCategory(@PathVariable("cat") String cat) {
+        return productRepo.findByCategoryOrderByName(cat);
     }
 }

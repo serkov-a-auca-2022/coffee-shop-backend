@@ -16,4 +16,9 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
                 Sort.Order.asc("name")
         ));
     }
+
+    /**
+     * Получить все продукты заданной категории, отсортированные по имени.
+     */
+    List<Product> findByCategoryOrderByName(String category);
 }
