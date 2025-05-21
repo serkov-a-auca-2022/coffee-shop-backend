@@ -4,6 +4,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -11,7 +13,8 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/orders")
 public class OrderController {
 
-    @Autowired private OrderService orderService;
+    @Autowired
+    private OrderService orderService;
 
     /**
      * Подтвердить (создать или обновить) заказ
@@ -103,5 +106,38 @@ public class OrderController {
         return ResponseEntity.ok(dtos);
     }
 
-
+    /**
+     * История баллов по заказам (начисления и списания).
+     */
+    @GetMapping("/user/{userId}/points")
+    public ResponseEntity<List<PointsHistoryDto>> getPointsHistoryFromOrders(
+            @PathVariable Long userId
+    ) {
+        // достаём все (finished+cancelled) заказы пользователя
+        List<Order> orders = orderService.getOrdersByUser(userId);
+        List<PointsHistoryDto> history = new ArrayList<>();
+        for (Order o : orders) {
+            if (o.getPointsUsed() > 0) {
+                history.add(new PointsHistoryDto(
+                        -o.getPointsUsed(),
+                        "Списание за заказ №" + o.getId(),
+                        o.getOrderDate(),
+                        "deduct"
+                ));
+            }
+            if (o.getPointsEarned() > 0) {
+                history.add(new PointsHistoryDto(
+                        o.getPointsEarned(),
+                        "Начисление за заказ №" + o.getId(),
+                        o.getOrderDate(),
+                        "add"
+                ));
+            }
+        }
+        // отсортируем по времени, от новых к старым
+        history.sort(Comparator.comparing(PointsHistoryDto::getTimestamp).reversed());
+        return ResponseEntity.ok(history);
+    }
 }
+
+
