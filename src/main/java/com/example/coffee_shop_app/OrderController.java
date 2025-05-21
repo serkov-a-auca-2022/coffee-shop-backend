@@ -91,4 +91,16 @@ public class OrderController {
         Order updated = orderService.assignUserToOrder(orderId, userId);
         return ResponseEntity.ok(new OrderResponse(updated));
     }
+
+    /**
+     * Список всех заказов одного пользователя
+     */
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<List<OrderResponse>> getOrdersByUser(@PathVariable Long userId) {
+        List<OrderResponse> dtos = orderService.getOrdersByUser(userId).stream()
+                .map(OrderResponse::new)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(dtos);
+    }
+
 }
