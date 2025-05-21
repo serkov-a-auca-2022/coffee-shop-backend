@@ -96,11 +96,12 @@ public class OrderController {
      * Список всех заказов одного пользователя
      */
     @GetMapping("/user/{userId}")
-    public ResponseEntity<List<OrderResponse>> getOrdersByUser(@PathVariable Long userId) {
-        List<OrderResponse> dtos = orderService.getOrdersByUser(userId).stream()
-                .map(OrderResponse::new)
+    public ResponseEntity<List<OrderHistoryDto>> getOrdersByUser(@PathVariable Long userId) {
+        List<OrderHistoryDto> dtos = orderService.getOrdersByUser(userId).stream()
+                .map(OrderHistoryDto::new)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(dtos);
     }
+
 
 }
