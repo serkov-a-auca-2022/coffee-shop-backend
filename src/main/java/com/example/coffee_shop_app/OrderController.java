@@ -106,6 +106,16 @@ public class OrderController {
         return ResponseEntity.ok(dtos);
     }
 
+    @PostMapping("/checkout")
+    public ResponseEntity<OrderResponse> checkoutWithRewards(@RequestBody RewardRequest req) {
+        Order updated = orderService.applyRewards(
+                req.getOrderId(),
+                req.getUseFreeDrinks(),
+                req.getUsePoints()
+        );
+        return ResponseEntity.ok(new OrderResponse(updated));
+    }
+
     /**
      * История баллов по заказам (начисления и списания).
      */

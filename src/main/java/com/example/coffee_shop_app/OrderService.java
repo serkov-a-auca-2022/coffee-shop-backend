@@ -229,6 +229,81 @@ public class OrderService {
         return orderRepo.save(order);
     }
 
+    /**
+     * Спец. метод для cashier-приложения:
+     * списание баллов, бесплатных напитков и автоматическое завершение заказа
+     */
+    @Transactional
+    public Order applyRewards(Long orderId, int freeToUse, int pointsToUse) {
+        Order order = orderRepo.findById(orderId)
+                .orElseThrow(() -> new NotFoundException("Order not found: " + orderId));
+        User user = order.getUser();
+        if (user == null) {
+            throw new IllegalArgumentException("Пользователь не привязан к заказу");
+        }
+
+        // 1) Валидируем количество бесплатных напитков
+        int drinksInOrder = order.getItems().stream()
+                .mapToInt(i -> i.getQuantity())
+                .sum();
+        int freeMax = Math.min(user.getFreeDrinks(), drinksInOrder);
+        if (freeToUse < 0 || freeToUse > freeMax) {
+            throw new IllegalArgumentException("Неверное число бесплатных напитков");
+        }
+
+        // 2) Валидируем баллы
+        double ptsMax = Math.min(user.getPoints(), order.getTotalAmount());
+        if (pointsToUse < 0 || pointsToUse > ptsMax) {
+            throw new IllegalArgumentException("Неверное число баллов");
+        }
+
+        // 3) Обновляем заказ
+        order.setPointsUsed(pointsToUse);
+        order.setFreeDrinkUsed(freeToUse > 0);
+
+        // Считаем скидку: баллы + бесплатные напитки (максимальная цена напитка)
+        double maxPrice = order.getItems().stream()
+                .mapToDouble(OrderItem::getPrice)
+                .max().orElse(0);
+        double discount = pointsToUse + freeToUse * maxPrice;
+        order.setFinalAmount(Math.max(0, order.getTotalAmount() - discount));
+
+        // 4) Списываем баллы у пользователя
+        if (pointsToUse > 0) {
+            user.setPoints(user.getPoints() - pointsToUse);
+            ptsRepo.save(new PointsTransaction(
+                    user,
+                    -pointsToUse,
+                    "deduct",
+                    "Списание за заказ №" + orderId,
+                    order
+            ));
+        }
+
+        // 5) Списываем бесплатные напитки
+        if (freeToUse > 0) {
+            user.setFreeDrinks(user.getFreeDrinks() - freeToUse);
+        }
+
+        // 6) Сохраняем пользователя
+        userRepo.save(user);
+
+        // 7) Автоматически завершаем заказ
+        order.setStatus(OrderStatus.FINISHED);
+        Order saved = orderRepo.save(order);
+
+        // 8) Дополнительно уведомление о бесплатном напитке
+        if (freeToUse > 0) {
+            notifRepo.save(new Notification(
+                    user.getId(),
+                    "Поздравляем!",
+                    "Вы использовали " + freeToUse + " бесплатных напитка(ов)"
+            ));
+        }
+
+        return saved;
+    }
+
     public List<Order> getOrdersByUser(Long userId) {
         return orderRepo.findByUserId(userId);
     }
