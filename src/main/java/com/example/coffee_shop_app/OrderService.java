@@ -10,6 +10,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 @Service
 public class OrderService {
@@ -263,16 +264,20 @@ public class OrderService {
         order.setFreeDrinkUsed(freeToUse > 0);
         order.setFreeDrinksUsedCount(freeToUse);
 
-        // 4) Считаем скидку по N самым дорогим напиткам
-        List<Double> prices = order.getItems().stream()
-                .map(OrderItem::getPrice)
+        // 4) Собираем все цены **каждой** единицы напитка и сортируем по убыванию
+        List<Double> unitPrices = order.getItems().stream()
+                .flatMap(item ->
+                        IntStream.range(0, item.getQuantity())
+                                .mapToObj(i -> item.getPrice())
+                )
                 .sorted(Comparator.reverseOrder())
                 .collect(Collectors.toList());
 
-        double drinksDiscount = 0;
-        for (int i = 0; i < freeToUse && i < prices.size(); i++) {
-            drinksDiscount += prices.get(i);
-        }
+        // 5) Берём первые freeToUse элементов из unitPrices
+        double drinksDiscount = unitPrices.stream()
+                .limit(freeToUse)
+                .mapToDouble(Double::doubleValue)
+                .sum();
 
         double discount = pointsToUse + drinksDiscount;
         order.setFinalAmount(Math.max(0, order.getTotalAmount() - discount));
