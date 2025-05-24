@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -260,12 +261,20 @@ public class OrderService {
         // 3) Обновляем заказ
         order.setPointsUsed(pointsToUse);
         order.setFreeDrinkUsed(freeToUse > 0);
+        order.setFreeDrinksUsedCount(freeToUse);
 
-        // Считаем скидку: баллы + бесплатные напитки (максимальная цена напитка)
-        double maxPrice = order.getItems().stream()
-                .mapToDouble(OrderItem::getPrice)
-                .max().orElse(0);
-        double discount = pointsToUse + freeToUse * maxPrice;
+        // 4) Считаем скидку по N самым дорогим напиткам
+        List<Double> prices = order.getItems().stream()
+                .map(OrderItem::getPrice)
+                .sorted(Comparator.reverseOrder())
+                .collect(Collectors.toList());
+
+        double drinksDiscount = 0;
+        for (int i = 0; i < freeToUse && i < prices.size(); i++) {
+            drinksDiscount += prices.get(i);
+        }
+
+        double discount = pointsToUse + drinksDiscount;
         order.setFinalAmount(Math.max(0, order.getTotalAmount() - discount));
 
         // 4) Списываем баллы у пользователя

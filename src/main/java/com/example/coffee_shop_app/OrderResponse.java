@@ -13,6 +13,9 @@ public class OrderResponse {
     private double pointsUsed;
     private int pointsEarned;
     private boolean freeDrinkUsed;
+
+    private int freeDrinksUsedCount;
+
     private OrderStatus status;
     private List<OrderItemResponseDto> items;
 
@@ -31,6 +34,7 @@ public class OrderResponse {
         this.pointsUsed     = order.getPointsUsed();
         this.pointsEarned   = order.getPointsEarned();
         this.freeDrinkUsed  = order.getFreeDrinkUsed();
+        this.freeDrinksUsedCount = order.getFreeDrinksUsedCount();
         this.status         = order.getStatus();
         this.items          = order.getItems().stream()
                 .map(OrderItemResponseDto::new)
@@ -108,6 +112,13 @@ public class OrderResponse {
     }
     public void setItems(List<OrderItemResponseDto> items) {
         this.items = items;
+    }
+
+    public int getFreeDrinksUsedCount() {
+        return freeDrinksUsedCount;
+    }
+    public void setFreeDrinksUsedCount(int freeDrinksUsedCount) {
+        this.freeDrinksUsedCount = freeDrinksUsedCount;
     }
 
     public UserResponse getUser() {

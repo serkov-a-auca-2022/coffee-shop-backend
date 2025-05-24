@@ -22,7 +22,9 @@ public class Order {
     private int pointsEarned;
     private boolean freeDrinkUsed;
 
-    // Статус заказа: ACTIVE, FINISHED, CANCELLED
+    private int freeDrinksUsedCount;
+
+    // Статус заказа: CONFIRMED, FINISHED, CANCELLED
     @Enumerated(EnumType.STRING)
     private OrderStatus status;
 
@@ -49,4 +51,11 @@ public class Order {
     public void setStatus(OrderStatus status) { this.status = status; }
     public List<OrderItem> getItems() { return items; }
     public void setItems(List<OrderItem> items) { this.items = items; }
+
+    public int getFreeDrinksUsedCount() {
+        return freeDrinksUsedCount;
+    }
+    public void setFreeDrinksUsedCount(int freeDrinksUsedCount) {
+        this.freeDrinksUsedCount = freeDrinksUsedCount;
+    }
 }
