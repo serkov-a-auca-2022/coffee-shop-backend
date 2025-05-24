@@ -1,13 +1,18 @@
 package com.example.coffee_shop_app;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import static org.springframework.format.annotation.DateTimeFormat.ISO.DATE;
 
 @RestController
 @RequestMapping("/api/orders")
@@ -40,12 +45,24 @@ public class OrderController {
      * История заказов (завершённые и отменённые)
      */
     @GetMapping("/history")
-    public ResponseEntity<List<OrderResponse>> getHistoryOrders() {
-        List<OrderResponse> dtos = orderService.getHistoryOrders().stream()
+    public ResponseEntity<List<OrderResponse>> getHistoryOrders(
+            @RequestParam(required = false) @DateTimeFormat(iso = DATE) LocalDate date
+    ) {
+        // 1) если date == null — работаем как раньше
+        //    иначе — фильтруем по orderDate.toLocalDate().equals(date)
+        List<Order> raw = orderService.getHistoryOrders();
+        Stream<Order> stream = raw.stream();
+        if (date != null) {
+            stream = stream.filter(o -> o.getOrderDate().toLocalDate().equals(date));
+        }
+        // 2) сортируем по дате (свежие первыми)
+        List<OrderResponse> dtos = stream
+                .sorted(Comparator.comparing(Order::getOrderDate).reversed())
                 .map(OrderResponse::new)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(dtos);
     }
+
 
     /**
      * Детали одного заказа
